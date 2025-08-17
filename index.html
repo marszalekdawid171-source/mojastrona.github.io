@@ -1,11 +1,97 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-  <meta charset="UTF-8">
-  <title>Moja pierwsza strona</title>
-</head>
-<body>
-  <h1>Witaj na mojej stronie!</h1>
-  <p>To jest mój pierwszy plik index.html 🚀</p>
-</body>
-</html>
+import React, { useMemo, useRef, useState } from "react";
+
+
+// === Helper types ===
+type Point = { x: number; y: number } // percentage [0..100]
+
+
+type POI = {
+id: string
+name: string
+pos: Point // relative to image in %
+hotness?: number // 0..1 (loot/popularity)
+}
+
+
+type Strategy = "hot" | "balanced" | "safe"
+
+
+// === Utilities ===
+function uuid() {
+return Math.random().toString(36).slice(2, 10)
+}
+
+
+function dist(a: Point, b: Point) {
+const dx = a.x - b.x
+const dy = a.y - b.y
+return Math.hypot(dx, dy)
+}
+
+
+function distPointToSegment(p: Point, a: Point, b: Point) {
+// distance from point to line segment AB in percentage coords
+const ax = a.x, ay = a.y, bx = b.x, by = b.y
+const abx = bx - ax, aby = by - ay
+const apx = p.x - ax, apy = p.y - ay
+const ab2 = abx * abx + aby * aby
+const t = ab2 === 0 ? 0 : Math.max(0, Math.min(1, (apx * abx + apy * aby) / ab2))
+const cx = ax + t * abx
+const cy = ay + t * aby
+return Math.hypot(p.x - cx, p.y - cy)
+}
+
+
+function clamp(n: number, min: number, max: number) {
+return Math.max(min, Math.min(max, n))
+}
+
+
+// === Main App ===
+export default function App() {
+const [imgURL, setImgURL] = useState<string | null>(null)
+const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null)
+const [pois, setPOIs] = useState<POI[]>([])
+const [selectedPOI, setSelectedPOI] = useState<string | null>(null)
+const [strategy, setStrategy] = useState<Strategy>("balanced")
+const [suggested, setSuggested] = useState<string[]>([])
+const [busPath, setBusPath] = useState<{ a: Point | null; b: Point | null }>({ a: null, b: null })
+const containerRef = useRef<HTMLDivElement | null>(null)
+const imgRef = useRef<HTMLImageElement | null>(null)
+
+
+// Load image via file upload
+const onUpload = (file: File) => {
+const url = URL.createObjectURL(file)
+setImgURL(url)
+setSuggested([])
+}
+
+
+const toPercentCoords = (e: React.MouseEvent) => {
+if (!imgRef.current) return { x: 0, y: 0 }
+const rect = imgRef.current.getBoundingClientRect()
+const x = clamp(((e.clientX - rect.left) / rect.width) * 100, 0, 100)
+const y = clamp(((e.clientY - rect.top) / rect.height) * 100, 0, 100)
+return { x, y }
+}
+
+
+const addPOIAt = (p: Point, name?: string) => {
+const poi: POI = { id: uuid(), name: name || `POI ${pois.length + 1}`, pos: p, hotness: 0.6 }
+setPOIs(prev => [...prev, poi])
+}
+
+
+const removePOI = (id: string) => setPOIs(prev => prev.filter(p => p.id !== id))
+
+
+const movePOI = (id: string, p: Point) => setPOIs(prev => prev.map(x => (x.id === id ? { ...x, pos: p } : x)))
+
+
+const setHotness = (id: string, h: number) => setPOIs(prev => prev.map(x => (x.id === id ? { ...x, hotness: clamp(h, 0, 1) } : x)))
+
+
+const handleMapClick = (e: React.MouseEvent) => {
+if (!imgURL) return
+}
